@@ -39,6 +39,31 @@ impl MappableEvent {
                 value: raw.value(),
                 raw,
             }),
+
+            // Scrollwheel events are mapped to custom, fake keycodes
+            // but we emit the original event if it doesn't get remapped.
+            InputEventKind::RelAxis(_) => {
+                let value = raw.value();
+                if value == 0 {
+                    //A value of zero would be unexpected for a relative event,
+                    //since changing something by zero is kinda useless.
+                    debug!("Unknown scroll value: {}", value);
+                    None
+                } else {
+                    //Positive and negative values can be really high because the events are relative,
+                    //so their values are variable, meaning we have to match with all positive/negative values.
+                    //Not sure if there is any relative event with a fixed value.
+                    // *2 to create a "gap" between events (since multiplying by two means that all resulting values will be even, the odd numbers between will be missing),
+                    //adding 59974 so that the total as a keycode corresponds to one of the "custom" scancode that was added to evdev.
+                    let mut code = (raw.code() * 2) + 59974;
+
+                    // +1 if the event has a negative value to "fill" the gap (since adding one shifts the parity from even to odd),
+                    if value < 0 {
+                        code += 1;
+                    }
+                    Some(Self { key: evdev::Key(code), value: PRESS, raw })
+                }
+            }
             _ => None,
         }
     }
