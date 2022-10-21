@@ -39,6 +39,19 @@ impl MappableEvent {
                 value: raw.value(),
                 raw,
             }),
+            // Scrollwheel events are treated as if they were SCROLLUP/SCROLLDOWN keypresses,
+            // but we emit the original event if it doesn't get remapped.
+            InputEventKind::RelAxis(RelativeAxisType::REL_WHEEL) => {
+                let key = match raw.value() {
+                    1 => Key::KEY_SCROLLUP,
+                    -1 => Key::KEY_SCROLLDOWN,
+                    other => {
+                        debug!("Unknown scroll value: {}", other);
+                        return None;
+                    }
+                };
+                Some(Self { key, value: PRESS, raw })
+            }
             _ => None,
         }
     }
